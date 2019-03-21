@@ -47,6 +47,9 @@ class Field:
             for k, v in self.attributes.items() if v is not None
         }
 
+    def __str__(self):
+        return str(self.schema())
+
 
 class StringField(Field):
     """String field
