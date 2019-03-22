@@ -3,6 +3,7 @@ from pymongo.errors import OperationFailure
 from pymongo.collection import Collection
 import inflection
 from pymongoext.binder import _BindCollectionMethods
+from pymongoext.exceptions import NoDocumentFound, MultipleDocumentsFound
 
 
 class Model(metaclass=_BindCollectionMethods):
@@ -144,6 +145,12 @@ class Model(metaclass=_BindCollectionMethods):
         cls._on_update()
 
     @classmethod
+    def _find_cursor(cls, filter_, limit, *args, **kwargs):
+        if filter_ is not None and not isinstance(filter_, dict):
+            filter_ = {"_id": filter_}
+        return cls.find(filter_, *args, **kwargs).limit(limit)
+
+    @classmethod
     def exists(cls, filter_=None, *args, **kwargs):
         """Check if a document exists in the database
 
@@ -164,7 +171,34 @@ class Model(metaclass=_BindCollectionMethods):
           **kwargs (optional): any additional keyword arguments
             are the same as the arguments to :meth:`find`.
         """
-        if filter_ is not None and not isinstance(filter_, dict):
-            filter_ = {"_id": filter_}
+        return cls._find_cursor(filter_, 1, *args, **kwargs).count() > 0
 
-        return cls.find(filter_, *args, **kwargs).limit(1).count() > 0
+    @classmethod
+    def get(cls, filter_=None, *args, **kwargs):
+        """Retrieve the the matching object raising
+        :class:`pymongoext.exceptions.MultipleDocumentsFound` exception if multiple results
+        and :class:`pymongoext.exceptions.NoDocumentFound` if no results are found.
+
+        All arguments to :meth:`find` are also valid arguments for
+        :meth:`get`, although any `limit` argument will be
+        ignored. Returns the matching document
+
+        Args:
+
+          filter_ (optional): a dictionary specifying
+            the query to be performed OR any other type to be used as
+            the value for a query for ``"_id"``.
+
+          *args (optional): any additional positional arguments
+            are the same as the arguments to :meth:`find`.
+
+          **kwargs (optional): any additional keyword arguments
+            are the same as the arguments to :meth:`find`.
+        """
+        cursor = cls._find_cursor(filter_, 2, *args, **kwargs)
+        count = cursor.count()
+        if count < 1:
+            raise NoDocumentFound()
+        if count > 1:
+            raise MultipleDocumentsFound()
+        return cursor.next()

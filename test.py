@@ -17,4 +17,4 @@ class AB(Model):
 
 
 # AB.insert_one({'name': 'abc'})
-# print(AB.find_one({'name': 'abc'}))
+print(AB.get({'name': 'abc'}))
