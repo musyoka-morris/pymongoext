@@ -1,4 +1,4 @@
-from .document import Document
+from .model import Model
 from .fields import *
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'

@@ -1,8 +1,10 @@
-from pymongoext import Document, DictField, StringField
+from pymongoext import Model, DictField, StringField
 from pymongo import MongoClient
 
 
-class AB(Document):
+class AB(Model):
+	__collection_name__ = 'ab_test'
+
 	@classmethod
 	def db(cls):
 		return MongoClient()['the_test_db']
@@ -14,5 +16,5 @@ class AB(Document):
 	__indexes__ = ["name"]
 
 
-AB.insert_one({'name': 'abc'})
-print(AB.find_one({'name': 'abc'}))
+# AB.insert_one({'name': 'abc'})
+# print(AB.find_one({'name': 'abc'}))
