@@ -54,12 +54,37 @@ class Model(metaclass=_BindCollectionMethods):
     """
 
     __collection_name__ = None
+    """
+    Pymongoext by default produces a collection name by taking the under_score_case of the model.
+    See ``inflection.underscore`` for more info.
+    
+    Set this if you need a different name for your collection.
+    """
 
     __auto_update__ = True
-    """"""
+    """
+    By default, PymongoExt ensures the indexes and schema defined on the model are in sync with mongodb.
+    It achieves this by creating & dropping indexes and 
+    pushing updates to the the JsonSchema defined in mongodb collection. 
+    This is done when your code runs for the first time or the server is restarted.
+    
+    If you want to disable this functionality and manage the updates yourself, 
+    you can set __auto_update__ to false.
+    
+    But then remember to :meth:`Model._update` to update the schema.
+    """
 
     __indexes__ = []
-    """Indexes to create"""
+    """List of Indexes to create on this collection
+    
+    An index is defined as either 
+        1. a single key or 
+        2. a list of (key, direction) pairs or
+        3. an instance of :class:`pymongo.IndexModel`
+        
+    See :meth:`pymongo.collection.Collection.create_index` and :meth:`pymongo.collection.Collection.create_indexes`
+    for more info.
+    """
 
     __schema__ = None
     """:type: Field Specifies model schema"""
@@ -68,6 +93,20 @@ class Model(metaclass=_BindCollectionMethods):
     def db(cls):
         """Get the mongo database instance associated with this collection
 
+        All concrete classes must implement this method. A sample implementation is shown below
+
+
+        .. highlight:: python
+        .. code-block:: python
+
+            from pymongo import MongoClient
+            from pymongoext import Model
+
+            class UserModel(Model):
+                @classmethod
+                def db(cls):
+                    return MongoClient()['test_db']
+
         Returns:
             pymongo.database.Database
         """
@@ -75,24 +114,35 @@ class Model(metaclass=_BindCollectionMethods):
 
     @classmethod
     def name(cls):
+        """Returns the collection name"""
         if cls.__collection_name__ is None:
             return inflection.underscore(cls.__name__)
         return cls.__collection_name__
 
     @classmethod
     def c(cls):
+        """Ensures that the model is up to date and returns an instance of pymongo Collection
+
+        Returns:
+            :class:`pymongo.collection.Collection`
+        """
         if cls._should_update():
             cls._update()
         return cls.db()[cls.name()]
 
     @classmethod
     def _validator(cls):
+        """Convert the schema to a valid JsonSchema object"""
         if cls.__schema__ is None:
             return {}
         return {"$jsonSchema": cls.__schema__.schema()}
 
     @classmethod
     def _indexes(cls):
+        """Maps all indexes to a list of :class:`pymongo.IndexModel`
+
+        All indexes are created in the background
+        """
         def _model(index):
             if not isinstance(index, IndexModel):
                 index = IndexModel(index)
@@ -106,14 +156,17 @@ class Model(metaclass=_BindCollectionMethods):
 
     @classmethod
     def _on_update(cls):
+        """Method called on successful update"""
         Model._UPTO_DATE.append(cls.name())
 
     @classmethod
     def _should_update(cls):
+        """Checks if we should update the collection meta"""
         return cls.__auto_update__ and cls.name() not in Model._UPTO_DATE
 
     @classmethod
     def _update(cls):
+        """Runs validator & index update commands on database"""
         db = cls.db()
         name = cls.name()
         validator = cls._validator()
@@ -145,9 +198,14 @@ class Model(metaclass=_BindCollectionMethods):
         cls._on_update()
 
     @classmethod
-    def _find_cursor(cls, filter_, limit, *args, **kwargs):
+    def _limited_cursor(cls, filter_, limit, *args, **kwargs):
+        """Helper method to create cursor.
+
+        See :meth:`exists` and :meth:`get` on how it is used
+        """
         if filter_ is not None and not isinstance(filter_, dict):
             filter_ = {"_id": filter_}
+
         return cls.find(filter_, *args, **kwargs).limit(limit)
 
     @classmethod
@@ -171,7 +229,7 @@ class Model(metaclass=_BindCollectionMethods):
           **kwargs (optional): any additional keyword arguments
             are the same as the arguments to :meth:`find`.
         """
-        return cls._find_cursor(filter_, 1, *args, **kwargs).count() > 0
+        return cls._limited_cursor(filter_, 1, *args, **kwargs).count() > 0
 
     @classmethod
     def get(cls, filter_=None, *args, **kwargs):
@@ -195,7 +253,7 @@ class Model(metaclass=_BindCollectionMethods):
           **kwargs (optional): any additional keyword arguments
             are the same as the arguments to :meth:`find`.
         """
-        cursor = cls._find_cursor(filter_, 2, *args, **kwargs)
+        cursor = cls._limited_cursor(filter_, 2, *args, **kwargs)
         count = cursor.count()
         if count < 1:
             raise NoDocumentFound()
