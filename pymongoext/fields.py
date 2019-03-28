@@ -128,7 +128,7 @@ class FloatField(NumberField):
 
 class BooleanField(Field):
     """Boolean field"""
-    __type__ = 'boolean'
+    __type__ = 'bool'
 
 
 class ListField(Field):
