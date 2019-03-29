@@ -1,5 +1,10 @@
 import inflection
 import copy
+from datetime import datetime
+from dateutil import parser
+import bson
+
+_ID = '_id'
 
 
 def _v(value, validator, error):
@@ -26,7 +31,8 @@ class Field:
     __type__ = None
     """Specifies the bsonType"""
 
-    def __init__(self, required=False, enum=None, title=None, description=None, **kwargs):
+    def __init__(self, default=None, required=False, enum=None, title=None, description=None, **kwargs):
+        self.default = default
         self.required = required
         self.attributes = dict(
             bson_type=self.__type__,
@@ -46,6 +52,21 @@ class Field:
             inflection.camelize(k, uppercase_first_letter=False): v
             for k, v in self.attributes.items() if v is not None
         }
+
+    def _parse_non_null_value(self, value):
+        return value
+
+    def parse(self, value, with_default):
+        if value is not None:
+            return self._parse_non_null_value(value)
+
+        if not with_default or self.default is None:
+            return value
+
+        if callable(self.default):
+            return self.default()
+
+        return copy.deepcopy(self.default)
 
     def __str__(self):
         return str(self.schema())
@@ -72,6 +93,9 @@ class StringField(Field):
             min_length=min_length,
             pattern=pattern
         )
+
+    def _parse_non_null_value(self, value):
+        return str(value)
 
 
 class NumberField(Field):
@@ -115,10 +139,16 @@ class NumberField(Field):
             multiple_of=multiple_of
         )
 
+    def _parse_non_null_value(self, value):
+        return float(value)
+
 
 class IntField(NumberField):
     """Integer field"""
     __type__ = 'int'
+
+    def _parse_non_null_value(self, value):
+        return int(value)
 
 
 class FloatField(NumberField):
@@ -157,12 +187,15 @@ class ListField(Field):
             items=None if field is None else field.schema()
         )
 
+    def _parse_non_null_value(self, value):
+        return list(value)
+
 
 class DictField(Field):
     """Dict Field
 
     Args:
-        props (dict): A name => Field map of known properties
+        props (dict of str: Field): A map of known properties
         max_props (int): The maximum number of properties allowed
         min_props (int): The minimum number of properties allowed
         additional_props (Field | bool): If ``true``, additional fields are allowed.
@@ -201,12 +234,52 @@ class DictField(Field):
                     required_props.append(name)
 
         self.required_props = list(set(required_props))
+        self.props = props
+        self.additional_props = additional_props
 
     def schema(self):
         schema = super().schema()
         if len(self.required_props) > 0:
             schema['required'] = self.required_props
         return schema
+
+    def parse(self, value, with_defaults, is_schema=False):
+        if value is None and not with_defaults:
+                return value
+
+        # Handle Nones
+        data = copy.deepcopy({} if value is None else value)
+        props = {} if self.props is None else self.props
+
+        # _id field defaults to ObjectID
+        if is_schema and _ID not in props:
+            props['_id'] = ObjectIDField()
+
+        # Parse given keys
+        for key, value in data.items():
+            if key in props:
+                data[key] = props[key].parse(value, with_defaults)
+
+        # Fill in missing keys
+        if with_defaults:
+            missing = set(props.keys()) - set(data.keys())
+            for key in missing:
+                default = props[key].parse(None, True)
+                if default is not None:
+                    data[key] = default
+
+        # Additional props
+        additional = set(data.keys()) - set(props.keys())
+
+        if not self.additional_props:
+            for key in additional:
+                del data[key]
+
+        elif isinstance(self.additional_props, Field):
+            for key in additional:
+                data[key] = self.additional_props.parse(data[key], with_defaults)
+
+        return data
 
 
 class MapField(DictField):
@@ -258,6 +331,12 @@ class DateTimeField(Field):
     """Datetime field"""
     __type__ = 'date'
 
+    def _parse_non_null_value(self, value):
+        if isinstance(value, datetime):
+            return value
+
+        return parser.parse(value)
+
 
 class TimeStamp(Field):
     """Timestamp field"""
@@ -267,3 +346,6 @@ class TimeStamp(Field):
 class ObjectIDField(Field):
     """ObjectID field"""
     __type__ = 'objectId'
+
+    def _parse_non_null_value(self, value):
+        return bson.ObjectId(value)

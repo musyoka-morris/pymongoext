@@ -1,5 +1,6 @@
-from pymongoext import Model, DictField, StringField
+from pymongoext import Model, DictField, StringField, DateTimeField
 from pymongo import MongoClient
+import datetime
 
 
 class AB(Model):
@@ -11,10 +12,12 @@ class AB(Model):
 
 	__schema__ = DictField(dict(
 		name=StringField(required=True),
+		createdAt=DateTimeField(default=datetime.datetime.utcnow, required=True)
 	))
 
-	__indexes__ = ["name"]
+	__indexes__ = ["name", "createdAt"]
 
 
-# AB.insert_one({'name': 'abc'})
-print(AB.get({'name': 'abc'}))
+data = AB.parse({'name': 'John Doe'}, with_defaults=True)
+AB.insert_one(data)
+print(list(AB.find({'name': 'John Doe'})))

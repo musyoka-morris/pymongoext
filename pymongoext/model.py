@@ -4,6 +4,7 @@ from pymongo.collection import Collection
 import inflection
 from pymongoext.binder import _BindCollectionMethods
 from pymongoext.exceptions import NoDocumentFound, MultipleDocumentsFound
+from pymongoext.fields import DictField
 
 
 class Model(metaclass=_BindCollectionMethods):
@@ -260,3 +261,40 @@ class Model(metaclass=_BindCollectionMethods):
         if count > 1:
             raise MultipleDocumentsFound()
         return cursor.next()
+
+    @classmethod
+    def parse(cls, data, with_defaults=False):
+        """Prepare the data to be stored in the db
+
+        For example, given a simple user model
+
+        .. highlight:: python
+        .. code-block:: python
+
+            class User(Model):
+
+                @classmethod
+                def db(cls):
+                    return MongoClient()['the_test_db']
+
+                __schema__ = DictField(dict(
+                    name=StringField(required=True),
+                    age=IntField(minimum=0, required=True, default=18)
+                ))
+
+        .. highlight:: python
+        .. code-block:: python
+
+            User.parse({'name': 'John Doe'}, with_defaults=True)
+            >>> {'name': 'John Doe', 'age': 18}
+
+        Args:
+            data (dict): Data to be stored
+            with_defaults (bool): If `True`, None and missing values are set to the field default
+
+        Returns:
+            dict
+        """
+        if isinstance(cls.__schema__, DictField):
+            return cls.__schema__.parse(data, with_defaults, is_schema=True)
+        return data
