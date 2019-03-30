@@ -18,6 +18,5 @@ class AB(Model):
 	__indexes__ = ["name", "createdAt"]
 
 
-data = AB.parse({'name': 'John Doe'}, with_defaults=True)
-AB.insert_one(data)
-print(list(AB.find({'name': 'John Doe'})))
+res = AB.insert_many([{'name': 'Jane'}, {'name': 'John'}])
+print(list(AB.find({})))

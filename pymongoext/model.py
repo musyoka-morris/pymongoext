@@ -5,6 +5,15 @@ import inflection
 from pymongoext.binder import _BindCollectionMethods
 from pymongoext.exceptions import NoDocumentFound, MultipleDocumentsFound
 from pymongoext.fields import DictField
+from pymongoext.manipulators import Manipulator, IdWithoutUnderscoreManipulator, ParseManipulator
+
+
+_BM = Manipulator()
+
+
+def _manipulator_method_overwritten(instance, method):
+    """Test if this method has been overridden."""
+    return getattr(instance, method).__func__ != getattr(_BM, method).__func__
 
 
 class Model(metaclass=_BindCollectionMethods):
@@ -88,7 +97,13 @@ class Model(metaclass=_BindCollectionMethods):
     """
 
     __schema__ = None
-    """:type: Field Specifies model schema"""
+    """:type: DictField Specifies model schema"""
+
+    __manipulators__ = [IdWithoutUnderscoreManipulator(), ParseManipulator()]
+    """A list of manipulators to be applied to incoming and outgoing documents
+    
+    Manipulators are applied sequentially in the order given
+    """
 
     @classmethod
     def db(cls):
@@ -125,11 +140,28 @@ class Model(metaclass=_BindCollectionMethods):
         """Ensures that the model is up to date and returns an instance of pymongo Collection
 
         Returns:
-            :class:`pymongo.collection.Collection`
+            Collection
         """
         if cls._should_update():
             cls._update()
         return cls.db()[cls.name()]
+
+    @classmethod
+    def apply_incoming_manipulators(cls, doc, action):
+        """Apply manipulators to an incoming document before it gets stored."""
+        for manipulator in cls.__manipulators__:
+            if _manipulator_method_overwritten(manipulator, 'transform_incoming'):
+                doc = manipulator.transform_incoming(doc, cls, action)
+        return doc
+
+    @classmethod
+    def apply_outgoing_manipulators(cls, doc):
+        """Apply manipulators to an outgoing document."""
+        if doc is not None:
+            for manipulator in cls.__manipulators__:
+                if _manipulator_method_overwritten(manipulator, 'transform_outgoing'):
+                    doc = manipulator.transform_outgoing(doc, cls)
+        return doc
 
     @classmethod
     def _validator(cls):
