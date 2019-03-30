@@ -4,6 +4,29 @@ from datetime import datetime
 from dateutil import parser
 import bson
 
+__all__ = [
+    "Field",
+    "StringField",
+
+    "NumberField",
+    "IntField",
+    "FloatField",
+
+    "BooleanField",
+    "DateTimeField",
+    "TimeStampField",
+    "ObjectIDField",
+
+    "ListField",
+    "DictField",
+    "MapField",
+
+    "OneOf",
+    "AllOf",
+    "AnyOf",
+
+    "Not"
+]
 _ID = '_id'
 
 
@@ -338,7 +361,7 @@ class DateTimeField(Field):
         return parser.parse(value)
 
 
-class TimeStamp(Field):
+class TimeStampField(Field):
     """Timestamp field"""
     __type__ = 'timestamp'
 

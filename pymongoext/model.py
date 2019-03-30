@@ -126,6 +126,8 @@ class Model(metaclass=_BindCollectionMethods):
         Returns:
             pymongo.database.Database
         """
+        from pymongo import MongoClient
+        return MongoClient()['xxxxx']
         raise NotImplementedError
 
     @classmethod

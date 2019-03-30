@@ -1,3 +1,11 @@
+__all__ = [
+	'IncomingAction',
+	'Manipulator',
+	'IdWithoutUnderscoreManipulator',
+	'ParseManipulator'
+]
+
+
 class IncomingAction:
 	"""Enum for Incoming action types"""
 	CREATE = 'CREATE'
@@ -5,7 +13,7 @@ class IncomingAction:
 	UPDATE = 'UPDATE'
 
 
-class Manipulator(object):
+class Manipulator:
 	"""A base document manipulator.
 
 	This manipulator just saves and restores documents without changing them.
