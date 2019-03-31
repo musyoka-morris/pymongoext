@@ -1,7 +1,8 @@
-
 class MultipleDocumentsFound(Exception):
-	pass
+	"""Raised by :meth:`pymongoext.model.Model.get`
+	when multiple documents matching the search criteria are found"""
 
 
 class NoDocumentFound(Exception):
-	pass
+	"""Raised by :meth:`pymongoext.model.Model.get`
+	when no documents matching the search criteria are found"""

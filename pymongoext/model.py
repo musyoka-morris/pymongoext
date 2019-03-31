@@ -17,92 +17,125 @@ def _manipulator_method_overwritten(instance, method):
 
 
 class Model(metaclass=_BindCollectionMethods):
-    """You should not use the :class:`Model` class directly.
-    Instead create subclasses of :class:`Model` as shown below.
+    """The base class used for defining the structure and properties of collections of documents stored in MongoDB.
+    You should not use the :class:`Model` class directly.
+    Instead Inherit from this class to define a document’s structure.
 
-    .. highlight:: python
-    .. code-block:: python
+    In pymongoext, the term "Model" refers to subclasses of the :class:`~Model` class.
+    A Model is your primary tool for interacting with MongoDB collections.
 
-        from pymongo import MongoClient
-        from pymongoext import Model, DictField, StringField, IntField
+    Note:
 
-        class UserModel(Model):
+        All concrete classes must implement the :meth:`~db` which should return a valid mongo database instance.
 
-            @classmethod
-            def db(cls):
-                return MongoClient()['the_test_db']
+    Examples:
 
-            __schema__ = DictField(dict(
-                email=StringField(required=True),
-                name=StringField(required=True),
-                password=StringField(required=True),
-                age=IntField(minimum=0)
-            ))
+        Create a Users model
 
-            __indexes__ = [IndexModel('email', unique=True), 'name']
+        .. highlight:: python
+        .. code-block:: python
 
-    The example above creates a user model which enforces the defined schema and ensures indexes are in sync.
-    All `pymongo.collection.Collection` methods and attributes can be accessed through the Model as shown below
+            from pymongo import MongoClient, IndexModel
+            from pymongoext import Model, DictField, StringField, IntField
 
+            class User(Model):
 
-    .. highlight:: python
-    .. code-block:: python
+                @classmethod
+                def db(cls):
+                    return MongoClient()['the_test_db']
 
-        # Insert document example
-        user_id = UserModel.insert_one({
-            "email": "john.doe@dummy.com",
-            "name": "John Doe",
-            "password": "secret",
-            "age": 35
-        })
+                __schema__ = DictField(dict(
+                    email=StringField(required=True),
+                    name=StringField(required=True),
+                    password=StringField(required=True),
+                    age=IntField(minimum=0)
+                ))
 
-        # Find a single document by id
-        john = UserModel.find_one(user_id)
+                __indexes__ = [IndexModel('email', unique=True), 'name']
 
-        # Check if a document exists
-        john_exists = UserModel.exists({"_id": user_id})
+        All `pymongo.collection.Collection
+        <https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection>`_
+        methods and attributes can be accessed through the Model as shown below
+
+        Create a new user
+
+        .. highlight:: python
+        .. code-block:: python
+
+            result = User.insert_one({
+                "email": "john.doe@dummy.com",
+                "name": "John Doe",
+                "password": "secret",
+                "age": 35
+            })
+            user_id = result.inserted_id
+
+        Find a single document by id.
+        See :meth:`~get` for an alternative to :meth:`find_one`
+
+        .. highlight:: python
+        .. code-block:: python
+
+            user = User.find_one(user_id)
+
+        Check if a document exists
+
+        .. highlight:: python
+        .. code-block:: python
+
+            user_exists = User.exists({"_id": user_id})
     """
 
     __collection_name__ = None
     """
     Pymongoext by default produces a collection name by taking the under_score_case of the model.
-    See ``inflection.underscore`` for more info.
+    See `inflection.underscore <https://inflection.readthedocs.io/en/latest/#inflection.underscore>`_ for more info.
     
     Set this if you need a different name for your collection.
     """
 
     __auto_update__ = True
     """
-    By default, PymongoExt ensures the indexes and schema defined on the model are in sync with mongodb.
+    By default, pymongoext ensures the indexes and schema defined on the model are in sync with mongodb.
     It achieves this by creating & dropping indexes and 
     pushing updates to the the JsonSchema defined in mongodb collection. 
     This is done when your code runs for the first time or the server is restarted.
     
     If you want to disable this functionality and manage the updates yourself, 
-    you can set __auto_update__ to false.
+    you can set ``__auto_update__`` to False.
     
-    But then remember to :meth:`Model._update` to update the schema.
+    But then remember to call :meth:`~._update` yourself to update the schema.
     """
 
     __indexes__ = []
     """List of Indexes to create on this collection
     
+    Todo:
+        
+        Support Index direction specification by prefixing the field names with a ``+`` or ``-`` sign.
+    
     An index is defined as either 
         1. a single key or 
         2. a list of (key, direction) pairs or
-        3. an instance of :class:`pymongo.IndexModel`
+        3. an instance of ``pymongo.IndexModel``
         
-    See :meth:`pymongo.collection.Collection.create_index` and :meth:`pymongo.collection.Collection.create_indexes`
-    for more info.
+    See the `create_index 
+    <https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.create_index>`_ 
+    and `create_indexes 
+    <https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.create_indexes>`_ 
+    methods of pymongo Collection for more info.
     """
 
     __schema__ = None
-    """:type: DictField Specifies model schema"""
+    """:class:`pymongoext.fields.DictField`: Specifies model schema"""
 
     __manipulators__ = [IdWithoutUnderscoreManipulator(), ParseManipulator()]
-    """A list of manipulators to be applied to incoming and outgoing documents
+    """A list of manipulators to be applied to incoming and outgoing documents.
+    Manipulators are applied sequentially in the order given.
     
-    Manipulators are applied sequentially in the order given
+    A manipulator operates on a single document before it is saved to mongodb and after it is retrieved.
+    
+    See :class:`pymongoext.manipulators.Manipulator` on how to implement your own manipulators.
     """
 
     @classmethod
@@ -118,31 +151,33 @@ class Model(metaclass=_BindCollectionMethods):
             from pymongo import MongoClient
             from pymongoext import Model
 
-            class UserModel(Model):
+            class User(Model):
                 @classmethod
                 def db(cls):
                     return MongoClient()['test_db']
 
         Returns:
-            pymongo.database.Database
+            :class:`pymongo.database.Database`
         """
-        from pymongo import MongoClient
-        return MongoClient()['xxxxx']
         raise NotImplementedError
 
     @classmethod
     def name(cls):
-        """Returns the collection name"""
+        """Returns the collection name.
+
+        See :attr:`~__collection_name__` for more info on how the collection name is determined
+        """
         if cls.__collection_name__ is None:
             return inflection.underscore(cls.__name__)
         return cls.__collection_name__
 
     @classmethod
     def c(cls):
-        """Ensures that the model is up to date and returns an instance of pymongo Collection
+        """Get the collection associated with this model.
+        This method ensures that the model indexes and schema validators are up to date.
 
         Returns:
-            Collection
+            :class:`pymongo.collection.Collection`
         """
         if cls._should_update():
             cls._update()
@@ -150,7 +185,15 @@ class Model(metaclass=_BindCollectionMethods):
 
     @classmethod
     def apply_incoming_manipulators(cls, doc, action):
-        """Apply manipulators to an incoming document before it gets stored."""
+        """Apply manipulators to an incoming document before it gets stored.
+
+        Args:
+            doc (dict): the document to be inserted into the database
+            action (str): the incoming action being performed
+
+        Returns:
+            dict: the transformed document
+        """
         for manipulator in cls.__manipulators__:
             if _manipulator_method_overwritten(manipulator, 'transform_incoming'):
                 doc = manipulator.transform_incoming(doc, cls, action)
@@ -158,7 +201,14 @@ class Model(metaclass=_BindCollectionMethods):
 
     @classmethod
     def apply_outgoing_manipulators(cls, doc):
-        """Apply manipulators to an outgoing document."""
+        """Apply manipulators to an outgoing document.
+
+        Args:
+            doc (dict): the document being retrieved from the database
+
+        Returns:
+            dict: the transformed document
+        """
         if doc is not None:
             for manipulator in cls.__manipulators__:
                 if _manipulator_method_overwritten(manipulator, 'transform_outgoing'):
@@ -236,7 +286,7 @@ class Model(metaclass=_BindCollectionMethods):
     def _limited_cursor(cls, filter_, limit, *args, **kwargs):
         """Helper method to create cursor.
 
-        See :meth:`exists` and :meth:`get` on how it is used
+        See :meth:`~exists` and :meth:`~get` on how it is used
         """
         if filter_ is not None and not isinstance(filter_, dict):
             filter_ = {"_id": filter_}
@@ -248,9 +298,9 @@ class Model(metaclass=_BindCollectionMethods):
         """Check if a document exists in the database
 
         All arguments to :meth:`find` are also valid arguments for
-        :meth:`exists`, although any `limit` argument will be
+        :meth:`~exists`, although any `limit` argument will be
         ignored. Returns ``True`` if a matching document is found,
-         otherwise ``False`` .
+        otherwise ``False`` .
 
         Args:
 
@@ -273,7 +323,7 @@ class Model(metaclass=_BindCollectionMethods):
         and :class:`pymongoext.exceptions.NoDocumentFound` if no results are found.
 
         All arguments to :meth:`find` are also valid arguments for
-        :meth:`get`, although any `limit` argument will be
+        :meth:`~get`, although any `limit` argument will be
         ignored. Returns the matching document
 
         Args:
@@ -324,7 +374,7 @@ class Model(metaclass=_BindCollectionMethods):
 
         Args:
             data (dict): Data to be stored
-            with_defaults (bool): If `True`, None and missing values are set to the field default
+            with_defaults (bool): If ``True``, None and missing values are set to the field default
 
         Returns:
             dict

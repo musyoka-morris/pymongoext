@@ -102,7 +102,7 @@ class StringField(Field):
         max_length (int): The maximum length of the field
         min_length (int): The minimum length of the field
         pattern (str): Field must match the regular expression
-        **kwargs: Additional kwargs to be passed to BaseField
+        **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
     __type__ = 'string'
 
@@ -132,7 +132,7 @@ class NumberField(Field):
         exclusive_minimum (int|long): The exclusive minimum value of the field.
             values are valid if they are strictly greater than (not equal to) the given value.
         multiple_of (int|long): Field must be a multiple of this value
-        **kwargs: Additional kwargs to be passed to BaseField
+        **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
     __type__ = 'number'
 
@@ -193,7 +193,7 @@ class ListField(Field):
         min_items (int): The minimum length of array
         unique_items (bool): 	If true, each item in the array must be unique.
             Otherwise, no uniqueness constraint is enforced.
-        **kwargs:
+        **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
 
     __type__ = 'array'
@@ -221,11 +221,11 @@ class DictField(Field):
         props (dict of str: Field): A map of known properties
         max_props (int): The maximum number of properties allowed
         min_props (int): The minimum number of properties allowed
-        additional_props (Field | bool): If ``true``, additional fields are allowed.
-            If ``false``, only properties specified in ``props`` are allowed.
-            If an instance of ``Field`` is specified, additional fields must validate against that field.
+        additional_props (Field | bool): If ``True``, additional fields are allowed.
+            If ``False``, only properties specified in ``props`` are allowed.
+            If an instance of :class:`~Field` is specified, additional fields must validate against that field.
         required_props (list of str): Property names that must be included
-        **kwargs:
+        **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
 
     __type__ = 'object'
@@ -311,11 +311,11 @@ class MapField(DictField):
 
 
 class _WithListFieldsInput(Field):
-    """Base class for fields that take as input multiple ``Field`` parameters
+    """Base class for fields that take as input multiple :class:`~Field` parameters
 
     Args:
         *fields (Field): Allowed fields
-        **kwargs:
+        **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
     def __init__(self, *fields, **kwargs):
         if len(fields) == 0:
@@ -327,7 +327,12 @@ class _WithListFieldsInput(Field):
 
 
 class OneOf(_WithListFieldsInput):
-    """value must match exactly one of the specified fields"""
+    """value must match exactly one of the specified fields
+
+    Example:
+
+        >>> OneOf(StringField(), IntField(minimum=10), required=True)
+    """
 
 
 class AllOf(_WithListFieldsInput):
@@ -343,7 +348,7 @@ class Not(Field):
 
     Args:
         field (Field): value must not match this field
-        **kwargs:
+        **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
     def __init__(self, field, **kwargs):
         kwargs['not'] = field.schema()
