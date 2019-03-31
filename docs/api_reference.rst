@@ -9,15 +9,15 @@ Model
 .. automodule:: pymongoext.model
     :members:
     :special-members:
-    :show-inheritance:
+    :undoc-members:
+    :member-order: bysource
+
 
 Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pymongoext.fields
     :members:
-    :special-members:
-    :show-inheritance:
 
 Manipulators
 ~~~~~~~~~~~~~~~
@@ -26,3 +26,10 @@ Manipulators
     :members:
     :special-members:
     :show-inheritance:
+    :undoc-members:
+
+Exceptions
+~~~~~~~~~~~~
+
+.. automodule:: pymongoext.exceptions
+    :members:

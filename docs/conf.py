@@ -45,6 +45,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
     'sphinx.ext.ifconfig',
+    'sphinx.ext.todo',
     'nbsphinx',
     'IPython.sphinxext.ipython_console_highlighting',
     'IPython.sphinxext.ipython_directive',
@@ -53,9 +54,7 @@ extensions = [
 
 # ipython_mplbackend = None
 ipython_execlines = [
-    "import pandas as pd",
-    "pd.set_option('display.width', 1000000)",
-    "pd.options.display.max_columns = None"
+    "import datetime",
 ]
 
 autosummary_generate = True
@@ -196,6 +195,11 @@ epub_title = project
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
 
+todo_include_todos = True
+autoclass_content = 'both'
+autodoc_default_options = {
+    'exclude-members': '__weakref__,__dict__,__module__'
+}
 
 # -- Extension configuration -------------------------------------------------
 nbsphinx_execute = 'never'
