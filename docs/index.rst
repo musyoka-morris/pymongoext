@@ -137,7 +137,6 @@ By default, pymongoext provides two manipulators by default
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    self
    install
