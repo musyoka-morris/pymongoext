@@ -29,5 +29,4 @@ setup(
     keywords='mongo mongodb database pymongo validation jsonschema schema indexes orm',
     include_package_data=True,
     long_description=long_description,
-    long_description_content_type='text/markdown'
 )
