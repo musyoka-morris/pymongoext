@@ -1,1 +1,6 @@
 include pymongoext/*.pyi
+include MANIFEST.in
+include README.rst
+include LICENSE
+recursive-include docs *
+prune docs/_build
