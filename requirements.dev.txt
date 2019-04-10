@@ -6,3 +6,7 @@ nbsphinx>=0.4.2
 Sphinx>=1.8.3
 sphinx_rtd_theme>=0.4.2
 pytest>=4.2.0
+
+inflection
+pymongo
+python-dateutil
