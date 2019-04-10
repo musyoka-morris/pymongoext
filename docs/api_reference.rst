@@ -9,6 +9,7 @@ Model
 .. automodule:: pymongoext.model
     :members:
     :special-members:
+    :show-inheritance:
     :undoc-members:
     :member-order: bysource
 

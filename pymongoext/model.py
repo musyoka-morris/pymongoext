@@ -148,7 +148,7 @@ class Model(metaclass=_BindCollectionMethods):
             2. :class:`~ParseInputsManipulator` with ``priority=7``
 
         Returns:
-            list of :class:`~Manipulator`
+            list of :class:`pymongoext.manipulators.Manipulator`
         """
         def _extract_manipulators(klass):
             for base in klass.__bases__:
