@@ -130,7 +130,7 @@ class Model(metaclass=_BindCollectionMethods):
     """:class:`pymongoext.fields.DictField`: Specifies model schema"""
 
     # default manipulators
-    IdWithoutUnderscoreManipulator = IdWithoutUnderscoreManipulator()
+    IdWithoutUnderscoreManipulator = IdWithoutUnderscoreManipulator
     ParseInputsManipulator = ParseInputsManipulator
 
     @classmethod
