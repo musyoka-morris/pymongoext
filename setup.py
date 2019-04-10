@@ -3,14 +3,15 @@ from setuptools import setup, find_packages
 from pymongoext import __version__
 
 dirname = path.abspath(path.dirname(__file__))
-with open(path.join(dirname, 'README.md')) as f:
+with open(path.join(dirname, 'README.rst')) as f:
     long_description = f.read()
 
 setup(
     name='pymongoext',
     version=__version__,
     packages=find_packages(),
-    description='An extension for pymongo that adds json schema validation and index management',
+    description='An ORM-like Pymongo extension that adds json schema validation, '
+                'index management and intermediate data manipulators',
     url='https://github.com/musyoka-morris/pymongoext',
     license='MIT',
     author='Musyoka Morris',
