@@ -38,7 +38,7 @@ Some simple examples of what pymongoext code looks like:
 
     from datetime import datetime
     from pymongo import MongoClient, IndexModel
-    from pymongoext import Model
+    from pymongoext import *
 
     class User(Model):
         @classmethod
@@ -54,8 +54,6 @@ Some simple examples of what pymongoext code looks like:
         __indexes__ = [IndexModel('email', unique=True), 'name']
 
         class AgeManipulator(Manipulator):
-            priority = 10
-
             def transform_outgoing(self, doc):
                 doc['age'] = datetime.now().year - doc['yob']
                 return doc
