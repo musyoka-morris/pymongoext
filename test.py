@@ -1,4 +1,4 @@
-from pymongoext import Model, DictField, StringField, DateTimeField
+from pymongoext import Manipulator, Model, DictField, StringField, DateTimeField
 from pymongo import MongoClient
 import datetime
 
@@ -16,6 +16,13 @@ class AB(Model):
 	))
 
 	__indexes__ = ["name", "createdAt"]
+
+	class DummyManipulator(Manipulator):
+		priority = 10
+
+		def transform_outgoing(self, doc, model):
+			doc['is_dummy'] = True
+			return doc
 
 
 res = AB.insert_many([{'name': 'Jane'}, {'name': 'John'}])

@@ -1,4 +1,5 @@
 from .model import Model
 from .fields import *
+from .manipulators import Manipulator
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'

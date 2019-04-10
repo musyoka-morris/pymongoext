@@ -2,7 +2,7 @@ __all__ = [
 	'IncomingAction',
 	'Manipulator',
 	'IdWithoutUnderscoreManipulator',
-	'ParseManipulator'
+	'ParseInputsManipulator'
 ]
 
 
@@ -18,6 +18,12 @@ class Manipulator:
 
 	This manipulator just saves and restores documents without changing them.
 	"""
+
+	priority = 5
+	"""Determines the order in which the manipulators will be applied.
+	Manipulators with a lower priority will be applied first	
+	"""
+
 	def transform_incoming(self, doc, model, action):
 		"""Manipulate an incoming document.
 
@@ -41,6 +47,8 @@ class Manipulator:
 class IdWithoutUnderscoreManipulator(Manipulator):
 	"""A document manipulator that manages a virtual id field."""
 
+	priority = 0
+
 	def transform_incoming(self, doc, model, action):
 		"""Remove id field if given and set _id to that value if missing"""
 		if "id" in doc:
@@ -56,8 +64,10 @@ class IdWithoutUnderscoreManipulator(Manipulator):
 		return doc
 
 
-class ParseManipulator(Manipulator):
+class ParseInputsManipulator(Manipulator):
 	"""Parses incoming documents to ensure data is in the valid format"""
+	priority = 7
+
 	def transform_incoming(self, doc, model, action):
 		if action in [IncomingAction.CREATE, IncomingAction.REPLACE]:
 			return model.parse(doc, with_defaults=True)

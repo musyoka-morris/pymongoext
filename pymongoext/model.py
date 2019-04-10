@@ -5,7 +5,7 @@ import inflection
 from pymongoext.binder import _BindCollectionMethods
 from pymongoext.exceptions import NoDocumentFound, MultipleDocumentsFound
 from pymongoext.fields import DictField
-from pymongoext.manipulators import Manipulator, IdWithoutUnderscoreManipulator, ParseManipulator
+from pymongoext.manipulators import Manipulator, IdWithoutUnderscoreManipulator, ParseInputsManipulator
 
 
 _BM = Manipulator()
@@ -129,14 +129,44 @@ class Model(metaclass=_BindCollectionMethods):
     __schema__ = None
     """:class:`pymongoext.fields.DictField`: Specifies model schema"""
 
-    __manipulators__ = [IdWithoutUnderscoreManipulator(), ParseManipulator()]
-    """A list of manipulators to be applied to incoming and outgoing documents.
-    Manipulators are applied sequentially in the order given.
-    
-    A manipulator operates on a single document before it is saved to mongodb and after it is retrieved.
-    
-    See :class:`pymongoext.manipulators.Manipulator` on how to implement your own manipulators.
-    """
+    # default manipulators
+    IdWithoutUnderscoreManipulator = IdWithoutUnderscoreManipulator()
+    ParseInputsManipulator = ParseInputsManipulator
+
+    @classmethod
+    def manipulators(cls):
+        """Return a list of manipulators to be applied to incoming and outgoing documents.
+        Manipulators are applied sequentially in an order determined by ``priority`` value of the manipulator.
+        Manipulators with a lower priority will be applied first.
+
+        A manipulator operates on a single document before it is saved to mongodb and after it is retrieved.
+        See :class:`pymongoext.manipulators.Manipulator` on how to implement your own manipulators.
+
+        By default every pymongoext model has two manipulators:
+
+            1. :class:`~IdWithoutUnderscoreManipulator` with ``priority=0``
+            2. :class:`~ParseInputsManipulator` with ``priority=7``
+
+        Returns:
+            list of :class:`~Manipulator`
+        """
+        def _extract_manipulators(klass):
+            for base in klass.__bases__:
+                _extract_manipulators(base)
+
+            for key, item in klass.__dict__.items():
+                if isinstance(item, Manipulator):
+                    mans[key] = item
+                else:
+                    try:
+                        if issubclass(item, Manipulator):
+                            mans[key] = item()
+                    except TypeError:
+                        pass
+
+        mans = {}
+        _extract_manipulators(cls)
+        return sorted(mans.values(), key=lambda man: man.priority)
 
     @classmethod
     def db(cls):
@@ -194,7 +224,7 @@ class Model(metaclass=_BindCollectionMethods):
         Returns:
             dict: the transformed document
         """
-        for manipulator in cls.__manipulators__:
+        for manipulator in cls.manipulators():
             if _manipulator_method_overwritten(manipulator, 'transform_incoming'):
                 doc = manipulator.transform_incoming(doc, cls, action)
         return doc
@@ -210,7 +240,7 @@ class Model(metaclass=_BindCollectionMethods):
             dict: the transformed document
         """
         if doc is not None:
-            for manipulator in cls.__manipulators__:
+            for manipulator in cls.manipulators():
                 if _manipulator_method_overwritten(manipulator, 'transform_outgoing'):
                     doc = manipulator.transform_outgoing(doc, cls)
         return doc

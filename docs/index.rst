@@ -101,32 +101,21 @@ A Manipulator lets you define a virtual property ``full_name`` that won't get pe
 
    from pymongoext.manipulators import Manipulator
 
-   class FullNameManipulator(Manipulator):
-      def transform_outgoing(self, doc):
-         doc['full_name'] = "{} {}".format(user['first_name'], user['last_name'])
-         return doc
-
-      def transform_incoming(self, doc, action):
-         if 'full_name' in doc:
-            del doc['full_name']  # Don't persist full name
-         return doc
-
-Then register your manipulator with the ``User`` model
-
-
-.. highlight:: python
-.. code-block:: python
-
    class User(BaseModel):
 
       # .....
 
-      __manipulators__ = BaseModel.__manipulators__ + [FullNameManipulator()]
+      class FullNameManipulator(Manipulator):
+         def transform_outgoing(self, doc):
+            doc['full_name'] = "{} {}".format(user['first_name'], user['last_name'])
+            return doc
+
+         def transform_incoming(self, doc, action):
+            if 'full_name' in doc:
+               del doc['full_name']  # Don't persist full name
+            return doc
 
 Now, every document you retrieve will have a full_name property.
-
-By default, pymongoext provides two manipulators by default
-
 
 .. highlight:: python
 .. code-block:: python
