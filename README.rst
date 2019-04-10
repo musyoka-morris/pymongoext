@@ -41,7 +41,7 @@ Some simple examples of what pymongoext code looks like:
     from pymongoext import *
 
 
-    class UserB(Model):
+    class User(Model):
         @classmethod
         def db(cls):
             return MongoClient()['my_database_name']
@@ -61,10 +61,10 @@ Some simple examples of what pymongoext code looks like:
 
 
     # Create a user
-    >>> UserB.insert_one({'email': 'jane@gmail.com', 'name': 'Jane Doe', 'yob': 1990})
+    >>> User.insert_one({'email': 'jane@gmail.com', 'name': 'Jane Doe', 'yob': 1990})
 
     # Fetch one user
-    >>> user = UserB.find_one()
+    >>> user = User.find_one()
 
     # Print the users age
     >>> print(user['age'])
