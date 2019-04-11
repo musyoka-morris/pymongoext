@@ -110,12 +110,12 @@ class Model(metaclass=_BindCollectionMethods):
     __indexes__ = []
     """List of Indexes to create on this collection
     
-    A valid index can be either::
+    A valid index can be either:
     
-        1. ``string`` optionally prefixed with a ``+`` or ``-`` sign.
-        2. (string, int) ``tuple``
-        3. A ``list`` whose values are either as defined in 1 or 2 above (Compound indexes)
-        4. an instance of ``pymongo.IndexModel``
+    1. ``string`` optionally prefixed with a ``+`` or ``-`` sign.
+    2. (string, int) ``tuple``
+    3. A ``list`` whose values are either as defined in 1 or 2 above (Compound indexes)
+    4. an instance of ``pymongo.IndexModel``
         
     See the `create_index 
     <https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.create_index>`_ 
