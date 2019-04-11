@@ -1,3 +1,5 @@
+from munch import Munch
+
 __all__ = [
 	'IncomingAction',
 	'Manipulator',
@@ -42,6 +44,21 @@ class Manipulator:
 			model (Type[pymongoext.model.Model]): the model associated with this document
 		"""
 		return doc
+
+
+class MunchManipulator(Manipulator):
+	"""Transforms documents to Munch objects.
+	A Munch is a Python dictionary that provides attribute-style access
+
+	See https://github.com/Infinidat/munch
+	"""
+	priority = -1
+
+	def transform_incoming(self, doc, model, action):
+		return Munch(doc)
+
+	def transform_outgoing(self, doc, model):
+		return Munch(doc)
 
 
 class IdWithoutUnderscoreManipulator(Manipulator):

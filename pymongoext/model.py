@@ -5,7 +5,7 @@ import inflection
 from pymongoext.binder import _BindCollectionMethods
 from pymongoext.exceptions import NoDocumentFound, MultipleDocumentsFound
 from pymongoext.fields import DictField
-from pymongoext.manipulators import Manipulator, IdWithoutUnderscoreManipulator, ParseInputsManipulator
+from pymongoext.manipulators import *
 
 
 _BM = Manipulator()
@@ -332,6 +332,7 @@ class Model(metaclass=_BindCollectionMethods):
     # default manipulators
     IdWithoutUnderscoreManipulator = IdWithoutUnderscoreManipulator
     ParseInputsManipulator = ParseInputsManipulator
+    MunchManipulator = MunchManipulator
 
     @classmethod
     def _validator(cls):

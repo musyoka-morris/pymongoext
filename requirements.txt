@@ -1,3 +1,4 @@
 inflection
 pymongo
 python-dateutil
+munch

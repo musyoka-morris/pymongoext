@@ -10,3 +10,4 @@ pytest>=4.2.0
 inflection
 pymongo
 python-dateutil
+munch
