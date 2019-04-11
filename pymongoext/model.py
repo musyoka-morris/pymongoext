@@ -42,7 +42,7 @@ class Model(metaclass=_BindCollectionMethods):
 
                 @classmethod
                 def db(cls):
-                    return MongoClient()['the_test_db']
+                    return MongoClient()['my_database_name']
 
                 __schema__ = DictField(dict(
                     email=StringField(required=True),
@@ -110,10 +110,11 @@ class Model(metaclass=_BindCollectionMethods):
     __indexes__ = []
     """List of Indexes to create on this collection
     
-    A valid index can be either:
+    A valid index can be either::
+    
         1. ``string`` optionally prefixed with a ``+`` or ``-`` sign.
         2. (string, int) ``tuple``
-        3. A ``list`` whose values are either #1 or #2 above (Compound indexes)
+        3. A ``list`` whose values are either as defined in 1 or 2 above (Compound indexes)
         4. an instance of ``pymongo.IndexModel``
         
     See the `create_index 
@@ -195,7 +196,7 @@ class Model(metaclass=_BindCollectionMethods):
             class User(Model):
                 @classmethod
                 def db(cls):
-                    return MongoClient()['test_db']
+                    return MongoClient()['my_database_name']
 
         Returns:
             :class:`pymongo.database.Database`
@@ -269,7 +270,7 @@ class Model(metaclass=_BindCollectionMethods):
 
                 @classmethod
                 def db(cls):
-                    return MongoClient()['the_test_db']
+                    return MongoClient()['my_database_name']
 
                 __schema__ = DictField(dict(
                     name=StringField(required=True),
