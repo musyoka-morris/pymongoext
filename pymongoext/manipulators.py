@@ -3,6 +3,7 @@ from munch import Munch
 __all__ = [
 	'IncomingAction',
 	'Manipulator',
+	'MunchManipulator',
 	'IdWithoutUnderscoreManipulator',
 	'ParseInputsManipulator'
 ]

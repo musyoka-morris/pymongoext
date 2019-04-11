@@ -44,7 +44,7 @@ Some simple examples of what pymongoext code looks like:
     >>> user = User.find_one()
 
     # Print the users age
-    >>> print(user['age'])
+    >>> print(user.age)
 
 
 Contents
