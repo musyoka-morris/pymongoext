@@ -1,4 +1,4 @@
-from pymongo import IndexModel
+from pymongo import IndexModel, DESCENDING, ASCENDING
 from pymongo.errors import OperationFailure
 from pymongo.collection import Collection
 import inflection
@@ -110,14 +110,11 @@ class Model(metaclass=_BindCollectionMethods):
     __indexes__ = []
     """List of Indexes to create on this collection
     
-    Todo:
-        
-        Support Index direction specification by prefixing the field names with a ``+`` or ``-`` sign.
-    
-    An index is defined as either 
-        1. a single key or 
-        2. a list of (key, direction) pairs or
-        3. an instance of ``pymongo.IndexModel``
+    A valid index can be either:
+        1. ``string`` optionally prefixed with a ``+`` or ``-`` sign.
+        2. (string, int) ``tuple``
+        3. A ``list`` whose values are either #1 or #2 above (Compound indexes)
+        4. an instance of ``pymongo.IndexModel``
         
     See the `create_index 
     <https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.create_index>`_ 
@@ -129,44 +126,58 @@ class Model(metaclass=_BindCollectionMethods):
     __schema__ = None
     """:class:`pymongoext.fields.DictField`: Specifies model schema"""
 
-    # default manipulators
-    IdWithoutUnderscoreManipulator = IdWithoutUnderscoreManipulator
-    ParseInputsManipulator = ParseInputsManipulator
+    @classmethod
+    def exists(cls, filter=None, *args, **kwargs):
+        """Check if a document exists in the database
+
+        All arguments to :meth:`find` are also valid arguments for
+        :meth:`~exists`, although any `limit` argument will be
+        ignored. Returns ``True`` if a matching document is found,
+        otherwise ``False`` .
+
+        Args:
+
+          filter (optional): a dictionary specifying
+            the query to be performed OR any other type to be used as
+            the value for a query for ``"_id"``.
+
+          *args (optional): any additional positional arguments
+            are the same as the arguments to :meth:`find`.
+
+          **kwargs (optional): any additional keyword arguments
+            are the same as the arguments to :meth:`find`.
+        """
+        return cls._limited_cursor(filter, 1, *args, **kwargs).count() > 0
 
     @classmethod
-    def manipulators(cls):
-        """Return a list of manipulators to be applied to incoming and outgoing documents.
-        Manipulators are applied sequentially in an order determined by ``priority`` value of the manipulator.
-        Manipulators with a lower priority will be applied first.
+    def get(cls, filter=None, *args, **kwargs):
+        """Retrieve the the matching object raising
+        :class:`pymongoext.exceptions.MultipleDocumentsFound` exception if multiple results
+        and :class:`pymongoext.exceptions.NoDocumentFound` if no results are found.
 
-        A manipulator operates on a single document before it is saved to mongodb and after it is retrieved.
-        See :class:`pymongoext.manipulators.Manipulator` on how to implement your own manipulators.
+        All arguments to :meth:`find` are also valid arguments for
+        :meth:`~get`, although any `limit` argument will be
+        ignored. Returns the matching document
 
-        By default every pymongoext model has two manipulators:
+        Args:
 
-            1. :class:`~IdWithoutUnderscoreManipulator` with ``priority=0``
-            2. :class:`~ParseInputsManipulator` with ``priority=7``
+          filter (optional): a dictionary specifying
+            the query to be performed OR any other type to be used as
+            the value for a query for ``"_id"``.
 
-        Returns:
-            list of :class:`pymongoext.manipulators.Manipulator`
+          *args (optional): any additional positional arguments
+            are the same as the arguments to :meth:`find`.
+
+          **kwargs (optional): any additional keyword arguments
+            are the same as the arguments to :meth:`find`.
         """
-        def _extract_manipulators(klass):
-            for base in klass.__bases__:
-                _extract_manipulators(base)
-
-            for key, item in klass.__dict__.items():
-                if isinstance(item, Manipulator):
-                    mans[key] = item
-                else:
-                    try:
-                        if issubclass(item, Manipulator):
-                            mans[key] = item()
-                    except TypeError:
-                        pass
-
-        mans = {}
-        _extract_manipulators(cls)
-        return sorted(mans.values(), key=lambda man: man.priority)
+        cursor = cls._limited_cursor(filter, 2, *args, **kwargs)
+        count = cursor.count()
+        if count < 1:
+            raise NoDocumentFound()
+        if count > 1:
+            raise MultipleDocumentsFound()
+        return cursor.next()
 
     @classmethod
     def db(cls):
@@ -246,6 +257,82 @@ class Model(metaclass=_BindCollectionMethods):
         return doc
 
     @classmethod
+    def parse(cls, data, with_defaults=False):
+        """Prepare the data to be stored in the db
+
+        For example, given a simple user model
+
+        .. highlight:: python
+        .. code-block:: python
+
+            class User(Model):
+
+                @classmethod
+                def db(cls):
+                    return MongoClient()['the_test_db']
+
+                __schema__ = DictField(dict(
+                    name=StringField(required=True),
+                    age=IntField(minimum=0, required=True, default=18)
+                ))
+
+        .. highlight:: python
+        .. code-block:: python
+
+            User.parse({'name': 'John Doe'}, with_defaults=True)
+            >>> {'name': 'John Doe', 'age': 18}
+
+        Args:
+            data (dict): Data to be stored
+            with_defaults (bool): If ``True``, None and missing values are set to the field default
+
+        Returns:
+            dict
+        """
+        if isinstance(cls.__schema__, DictField):
+            return cls.__schema__.parse(data, with_defaults, is_schema=True)
+        return data
+
+    @classmethod
+    def manipulators(cls):
+        """Return a list of manipulators to be applied to incoming and outgoing documents.
+        Manipulators are applied sequentially in an order determined by ``priority`` value of the manipulator.
+        Manipulators with a lower priority will be applied first.
+
+        A manipulator operates on a single document before it is saved to mongodb and after it is retrieved.
+        See :class:`pymongoext.manipulators.Manipulator` on how to implement your own manipulators.
+
+        By default every pymongoext model has two manipulators:
+
+            1. :class:`~IdWithoutUnderscoreManipulator` with ``priority=0``
+            2. :class:`~ParseInputsManipulator` with ``priority=7``
+
+        Returns:
+            list of :class:`pymongoext.manipulators.Manipulator`
+        """
+        def _extract_manipulators(klass):
+            for base in klass.__bases__:
+                _extract_manipulators(base)
+
+            for key, item in klass.__dict__.items():
+                if isinstance(item, Manipulator):
+                    mans[key] = item
+                else:
+                    try:
+                        if issubclass(item, Manipulator):
+                            mans[key] = item()
+                    except TypeError:
+                        pass
+
+        mans = {}
+        _extract_manipulators(cls)
+        return sorted(mans.values(), key=lambda man: man.priority)
+
+    # default manipulators
+    IdWithoutUnderscoreManipulator = IdWithoutUnderscoreManipulator
+    ParseInputsManipulator = ParseInputsManipulator
+
+    @classmethod
     def _validator(cls):
         """Convert the schema to a valid JsonSchema object"""
         if cls.__schema__ is None:
@@ -257,10 +344,37 @@ class Model(metaclass=_BindCollectionMethods):
         """Maps all indexes to a list of :class:`pymongo.IndexModel`
 
         All indexes are created in the background
+
+        A valid index can be either:
+            1. String optionally prefixed with a +|-
+            2. (string, int) tuple
+            3. A list whose values are either #1 or #2 above (Compound indexes)
+            4. an instance of ``pymongo.IndexModel``
         """
+        def _tuple(index):
+            """"Converts to a tuple"""
+            if isinstance(index, tuple):
+                return index
+
+            if not isinstance(index, str):
+                raise ValueError('Invalid index value {}. Expected a string or tuple'.format(index))
+
+            if index.startswith('-'):
+                return index[1:], DESCENDING
+
+            if index.startswith('+'):
+                return index[1:], ASCENDING
+
+            return index, ASCENDING
+
         def _model(index):
-            if not isinstance(index, IndexModel):
-                index = IndexModel(index)
+            """Converts to IndexModel"""
+            if isinstance(index, list):
+                index = IndexModel([_tuple(x) for x in index])
+
+            elif not isinstance(index, IndexModel):
+                index = IndexModel([_tuple(index)])
+
             index.document['background'] = True
             return index
 
@@ -322,93 +436,3 @@ class Model(metaclass=_BindCollectionMethods):
             filter_ = {"_id": filter_}
 
         return cls.find(filter_, *args, **kwargs).limit(limit)
-
-    @classmethod
-    def exists(cls, filter_=None, *args, **kwargs):
-        """Check if a document exists in the database
-
-        All arguments to :meth:`find` are also valid arguments for
-        :meth:`~exists`, although any `limit` argument will be
-        ignored. Returns ``True`` if a matching document is found,
-        otherwise ``False`` .
-
-        Args:
-
-          filter_ (optional): a dictionary specifying
-            the query to be performed OR any other type to be used as
-            the value for a query for ``"_id"``.
-
-          *args (optional): any additional positional arguments
-            are the same as the arguments to :meth:`find`.
-
-          **kwargs (optional): any additional keyword arguments
-            are the same as the arguments to :meth:`find`.
-        """
-        return cls._limited_cursor(filter_, 1, *args, **kwargs).count() > 0
-
-    @classmethod
-    def get(cls, filter_=None, *args, **kwargs):
-        """Retrieve the the matching object raising
-        :class:`pymongoext.exceptions.MultipleDocumentsFound` exception if multiple results
-        and :class:`pymongoext.exceptions.NoDocumentFound` if no results are found.
-
-        All arguments to :meth:`find` are also valid arguments for
-        :meth:`~get`, although any `limit` argument will be
-        ignored. Returns the matching document
-
-        Args:
-
-          filter_ (optional): a dictionary specifying
-            the query to be performed OR any other type to be used as
-            the value for a query for ``"_id"``.
-
-          *args (optional): any additional positional arguments
-            are the same as the arguments to :meth:`find`.
-
-          **kwargs (optional): any additional keyword arguments
-            are the same as the arguments to :meth:`find`.
-        """
-        cursor = cls._limited_cursor(filter_, 2, *args, **kwargs)
-        count = cursor.count()
-        if count < 1:
-            raise NoDocumentFound()
-        if count > 1:
-            raise MultipleDocumentsFound()
-        return cursor.next()
-
-    @classmethod
-    def parse(cls, data, with_defaults=False):
-        """Prepare the data to be stored in the db
-
-        For example, given a simple user model
-
-        .. highlight:: python
-        .. code-block:: python
-
-            class User(Model):
-
-                @classmethod
-                def db(cls):
-                    return MongoClient()['the_test_db']
-
-                __schema__ = DictField(dict(
-                    name=StringField(required=True),
-                    age=IntField(minimum=0, required=True, default=18)
-                ))
-
-        .. highlight:: python
-        .. code-block:: python
-
-            User.parse({'name': 'John Doe'}, with_defaults=True)
-            >>> {'name': 'John Doe', 'age': 18}
-
-        Args:
-            data (dict): Data to be stored
-            with_defaults (bool): If ``True``, None and missing values are set to the field default
-
-        Returns:
-            dict
-        """
-        if isinstance(cls.__schema__, DictField):
-            return cls.__schema__.parse(data, with_defaults, is_schema=True)
-        return data

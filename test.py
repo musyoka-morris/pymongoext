@@ -15,7 +15,7 @@ class AB(Model):
 		createdAt=DateTimeField(default=datetime.datetime.utcnow, required=True)
 	))
 
-	__indexes__ = ["name", "createdAt"]
+	__indexes__ = ["name", "-createdAt"]
 
 	class DummyManipulator(Manipulator):
 		priority = 10
