@@ -178,7 +178,7 @@ class Model(metaclass=_BindCollectionMethods):
             raise NoDocumentFound()
         if count > 1:
             raise MultipleDocumentsFound()
-        return cursor.next()
+        return cls.apply_outgoing_manipulators(cursor.next())
 
     @classmethod
     def db(cls):
