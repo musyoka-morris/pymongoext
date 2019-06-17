@@ -3,6 +3,7 @@ import copy
 from datetime import datetime
 from dateutil import parser
 import bson
+from fastnumbers import fast_float
 
 __all__ = [
     "Field",
@@ -28,7 +29,15 @@ __all__ = [
 
     "Not"
 ]
+
 _ID = '_id'
+
+
+def _float(x):
+    """Convert to a float"""
+    if x == "" or x is None:
+        return None
+    return fast_float(x, raise_on_invalid=True, nan=None)
 
 
 def _v(value, validator, error):
@@ -187,7 +196,7 @@ class NumberField(Field):
         )
 
     def _parse_non_null_value(self, value):
-        return float(value)
+        return _float(value)
 
 
 class IntField(NumberField):
@@ -195,7 +204,8 @@ class IntField(NumberField):
     __type__ = 'int'
 
     def _parse_non_null_value(self, value):
-        return int(value)
+        value = _float(value)
+        return None if value is None else int(value)
 
 
 class FloatField(NumberField):

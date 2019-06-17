@@ -2,3 +2,4 @@ inflection
 pymongo
 python-dateutil
 munch
+fastnumbers
