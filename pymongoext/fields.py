@@ -58,12 +58,17 @@ class Field:
         self.default = default
         self.required = required
         self.attributes = dict(
-            bson_type=self.__type__,
             enum=enum if enum is None else list(set(enum)),
             title=title,
             description=description,
             **kwargs
         )
+
+    def bson_type(self):
+        if self.__type__ is None or self.required:
+            return self.__type__
+
+        return list({self.__type__, "null"})
 
     def schema(self):
         """Creates a valid JsonSchema object
@@ -71,9 +76,10 @@ class Field:
         Returns:
             dict
         """
+        attributes = dict(**self.attributes, bson_type=self.bson_type())
         return {
             inflection.camelize(k, uppercase_first_letter=False): v
-            for k, v in self.attributes.items() if v is not None
+            for k, v in attributes.items() if v is not None
         }
 
     def _parse_non_null_value(self, value):
@@ -93,6 +99,14 @@ class Field:
 
     def __str__(self):
         return str(self.schema())
+
+
+class NullField(Field):
+    """Null field"""
+    __type__ = 'null'
+
+    def __init__(self):
+        super().__init__()
 
 
 class StringField(Field):
@@ -268,7 +282,7 @@ class DictField(Field):
 
     def parse(self, value, with_defaults, is_schema=False):
         if value is None and not with_defaults:
-                return value
+            return value
 
         # Handle Nones
         data = copy.deepcopy({} if value is None else value)
@@ -317,13 +331,24 @@ class _WithListFieldsInput(Field):
         *fields (Field): Allowed fields
         **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
-    def __init__(self, *fields, **kwargs):
+
+    __add_null__ = True
+    """Specifies if a null field should be added to the fields list if required=```False``"""
+
+    def __init__(self, *fields, required=False, **kwargs):
         if len(fields) == 0:
             raise ValueError('At least one field must be provided')
 
+        fields = list(copy.deepcopy(fields))
+        for field in fields:
+            field.required = True
+
+        if self.__add_null__ and not required:
+            fields.append(NullField())
+
         key = inflection.underscore(self.__class__.__name__)
         kwargs[key] = [field.schema() for field in fields]
-        super().__init__(**kwargs)
+        super().__init__(**kwargs, required=required)
 
 
 class OneOf(_WithListFieldsInput):
@@ -337,6 +362,7 @@ class OneOf(_WithListFieldsInput):
 
 class AllOf(_WithListFieldsInput):
     """value must match all specified fields"""
+    __add_null__ = False
 
 
 class AnyOf(_WithListFieldsInput):
@@ -350,9 +376,10 @@ class Not(Field):
         field (Field): value must not match this field
         **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
-    def __init__(self, field, **kwargs):
+    def __init__(self, field, required=False, **kwargs):
+        field.required = not required  # Negate field's required state
         kwargs['not'] = field.schema()
-        super().__init__(**kwargs)
+        super().__init__(**kwargs, required=required)
 
 
 class DateTimeField(Field):
