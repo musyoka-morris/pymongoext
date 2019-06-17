@@ -6,6 +6,7 @@ import bson
 
 __all__ = [
     "Field",
+    "NullField",
     "StringField",
 
     "NumberField",
