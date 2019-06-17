@@ -64,11 +64,15 @@ class Field:
             **kwargs
         )
 
-    def bson_type(self):
-        if self.__type__ is None or self.required:
+    def _bson_type(self):
+        """Defer computation of bson_type as it depends on the required attribute"""
+        if self.__type__ is None or self.__type__ == 'null' or self.required:
             return self.__type__
+        return [self.__type__, "null"]
 
-        return list({self.__type__, "null"})
+    def _deferred_attributes(self):
+        """Defer computation of dynamic attributes"""
+        return {}
 
     def schema(self):
         """Creates a valid JsonSchema object
@@ -76,7 +80,12 @@ class Field:
         Returns:
             dict
         """
-        attributes = dict(**self.attributes, bson_type=self.bson_type())
+        attributes = dict(
+            **self.attributes,
+            **self._deferred_attributes(),
+            bson_type=self._bson_type()
+        )
+
         return {
             inflection.camelize(k, uppercase_first_letter=False): v
             for k, v in attributes.items() if v is not None
@@ -216,12 +225,18 @@ class ListField(Field):
         _v(max_items, _is_positive_int, '{} is not a valid value for max_items')
         _v(min_items, _is_positive_int, '{} is not a valid value for min_items')
 
+        self.field = field
+
         super().__init__(
             **kwargs,
             max_items=max_items,
             min_items=min_items,
-            unique_items=unique_items,
-            items=None if field is None else field.schema()
+            unique_items=unique_items
+        )
+
+    def _deferred_attributes(self):
+        return dict(
+            items=None if self.field is None else self.field.schema()
         )
 
     def _parse_non_null_value(self, value):
@@ -254,15 +269,20 @@ class DictField(Field):
         _v(max_props, _is_positive_int, '{} is not a valid value for max_props')
         _v(min_props, _is_positive_int, '{} is not a valid value for min_props')
 
-        ap = additional_props  # just a shorter name
+        self.additional_props = additional_props
+        self.props = props
+        self.required_props = required_props
 
         super().__init__(
             **kwargs,
             max_properties=max_props,
-            min_properties=min_props,
-            properties=props if props is None else {k: v.schema() for k, v in props.items()},
-            additional_properties=ap.schema() if isinstance(ap, Field) else ap
+            min_properties=min_props
         )
+
+    def _deferred_attributes(self):
+        ap = self.additional_props
+        props = self.props
+        required_props = self.required_props
 
         required_props = [] if required_props is None else list(copy.deepcopy(required_props))
         if props is not None:
@@ -270,14 +290,16 @@ class DictField(Field):
                 if field.required:
                     required_props.append(name)
 
-        self.required_props = list(set(required_props))
-        self.props = props
-        self.additional_props = additional_props
+        required_props = list(set(required_props))
+
+        return dict(
+            properties=props if props is None else {k: v.schema() for k, v in props.items()},
+            additional_properties=ap.schema() if isinstance(ap, Field) else ap,
+            required=required_props if len(required_props) > 0 else None
+        )
 
     def schema(self):
         schema = super().schema()
-        if len(self.required_props) > 0:
-            schema['required'] = self.required_props
         return schema
 
     def parse(self, value, with_defaults, is_schema=False):
@@ -335,20 +357,24 @@ class _WithListFieldsInput(Field):
     __add_null__ = True
     """Specifies if a null field should be added to the fields list if required=```False``"""
 
-    def __init__(self, *fields, required=False, **kwargs):
+    def __init__(self, *fields, **kwargs):
         if len(fields) == 0:
             raise ValueError('At least one field must be provided')
 
-        fields = list(copy.deepcopy(fields))
+        self._fields = list(fields)
+
+        super().__init__(**kwargs)
+
+    def _deferred_attributes(self):
+        fields = list(copy.deepcopy(self._fields))
         for field in fields:
             field.required = True
 
-        if self.__add_null__ and not required:
+        if self.__add_null__ and not self.required:
             fields.append(NullField())
 
         key = inflection.underscore(self.__class__.__name__)
-        kwargs[key] = [field.schema() for field in fields]
-        super().__init__(**kwargs, required=required)
+        return {key: [field.schema() for field in fields]}
 
 
 class OneOf(_WithListFieldsInput):
@@ -376,10 +402,14 @@ class Not(Field):
         field (Field): value must not match this field
         **kwargs: any additional keyword arguments are the same as the arguments to the :class:`~Field` class
     """
-    def __init__(self, field, required=False, **kwargs):
-        field.required = not required  # Negate field's required state
-        kwargs['not'] = field.schema()
-        super().__init__(**kwargs, required=required)
+    def __init__(self, field, **kwargs):
+        self._field = field
+        super().__init__(**kwargs)
+
+    def _deferred_attributes(self):
+        field = copy.deepcopy(self._field)
+        field.required = not self.required  # Negate field's required state
+        return {'not': field.schema()}
 
 
 class DateTimeField(Field):
