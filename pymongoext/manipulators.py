@@ -70,7 +70,7 @@ class IdWithoutUnderscoreManipulator(Manipulator):
 	def transform_incoming(self, doc, model, action):
 		"""Remove id field if given and set _id to that value if missing"""
 		if "id" in doc:
-			if "_id" not in doc:
+			if doc["id"] and "_id" not in doc:
 				doc["_id"] = doc['id']
 			del doc["id"]
 		return doc
